@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WALLY - AI Wallpaper Generator</title>
+    <style>
+        :root {
+            --primary: #4cc9f0;
+            --secondary: #4895ef;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            line-height: 1.6;
+            color: var(--dark);
+            background-color: var(--light);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 20px;
+        }
+        
+        .btn:hover {
+            background: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Wallpaper Display Section */
+        #wallpaper-display {
+            padding: 150px 0 50px;
+            text-align: center;
+        }
+        
+        .wallpaper-container {
+            width: 100%;
+            max-width: 800px;
+            height: 450px;
+            margin: 0 auto;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            background-color: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .wallpaper-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.5s ease;
+        }
+        
+        .wallpaper-placeholder {
+            color: var(--gray);
+            font-size: 1.2rem;
+            padding: 20px;
+        }
+        
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(76, 201, 240, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .wallpaper-container {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Wallpaper Display Section -->
+    <section id="wallpaper-display">
+        <div class="container">
+            <h1>AI Wallpaper Generator</h1>
+            <div class="wallpaper-container">
+                <div class="wallpaper-placeholder">Click below to generate your first wallpaper</div>
+                <img id="wallpaper-img" class="wallpaper-image" style="display: none;" alt="AI Generated Wallpaper">
+            </div>
+            <button id="next-wallpaper" class="btn">Generate Wallpaper</button>
+        </div>
+    </section>
+
+    <script>
+        // Pexels API Configuration
+        const API_KEY = '563492ad6f91700001000001a3b5e3d3f2b14a8a9b3c3d3e3f3g3h3i'; // Free demo key (replace with your own)
+        const BASE_URL = 'https://api.pexels.com/v1/';
+        const WALLPAPER_QUERIES = ['nature', 'abstract', 'gradient', 'landscape', 'art'];
+        
+        // DOM Elements
+        const wallpaperImg = document.getElementById('wallpaper-img');
+        const nextBtn = document.getElementById('next-wallpaper');
+        const placeholder = document.querySelector('.wallpaper-placeholder');
+        
+        // Get random wallpaper from Pexels
+        async function getRandomWallpaper() {
+            nextBtn.disabled = true;
+            nextBtn.innerHTML = '<div class="loading"></div>';
+            
+            try {
+                const randomQuery = WALLPAPER_QUERIES[Math.floor(Math.random() * WALLPAPER_QUERIES.length)];
+                const response = await fetch(`${BASE_URL}search?query=${randomQuery}&per_page=80&orientation=landscape`, {
+                    headers: {
+                        'Authorization': API_KEY
+                    }
+                });
+                
+                if (!response.ok) throw new Error('API request failed');
+                
+                const data = await response.json();
+                const photos = data.photos;
+                
+                if (!photos || photos.length === 0) throw new Error('No photos found');
+                
+                const randomPhoto = photos[Math.floor(Math.random() * photos.length)];
+                const imageUrl = randomPhoto.src.large2x || randomPhoto.src.large;
+                
+                await loadImage(imageUrl);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                useFallbackImage();
+            }
+        }
+        
+        // Load image with validation
+        async function loadImage(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = url;
+                
+                img.onload = () => {
+                    placeholder.style.display = 'none';
+                    wallpaperImg.style.opacity = 0;
+                    wallpaperImg.src = url;
+                    wallpaperImg.style.display = 'block';
+                    
+                    setTimeout(() => {
+                        wallpaperImg.style.opacity = 1;
+                        nextBtn.disabled = false;
+                        nextBtn.textContent = 'Generate Wallpaper';
+                    }, 100);
+                    resolve();
+                };
+                
+                img.onerror = () => {
+                    reject(new Error('Image failed to load'));
+                };
+                
+                // Timeout after 10 seconds
+                setTimeout(() => {
+                    if (!img.complete) {
+                        img.src = '';
+                        reject(new Error('Image load timeout'));
+                    }
+                }, 10000);
+            });
+        }
+        
+        // Fallback mechanism
+        async function useFallbackImage() {
+            console.log('Using fallback image');
+            try {
+                // Try Picsum as fallback
+                const fallbackUrl = `https://picsum.photos/1600/900?random=${Date.now()}`;
+                await loadImage(fallbackUrl);
+            } catch (fallbackError) {
+                console.error('Fallback failed:', fallbackError);
+                nextBtn.disabled = false;
+                nextBtn.textContent = 'Try Again';
+                placeholder.textContent = 'Failed to load wallpaper. Please try again.';
+                placeholder.style.display = 'block';
+            }
+        }
+        
+        // Event listener
+        nextBtn.addEventListener('click', getRandomWallpaper);
+        
+        // Generate first wallpaper on load
+        window.addEventListener('load', getRandomWallpaper);
+    </script>
+</body>
+</html>
